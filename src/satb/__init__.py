@@ -3,6 +3,7 @@ SATB - A command-line tool for processing MusicXML files for SATB choral arrange
 """
 
 import argparse
+import copy
 import sys
 from pathlib import Path
 
@@ -88,6 +89,51 @@ def process_musicxml_file(file_path: Path, verbose: bool = False) -> None:
                         lowest = min(pitches, key=lambda p: p.midi)
                         highest = max(pitches, key=lambda p: p.midi)
                         print(f"  {part_name}: Range {lowest.name}{lowest.octave} - {highest.name}{highest.octave}")
+        
+        # Output all notes in Part 1, Voice 1
+        if parts:
+            print("\n=== Part 1, Voice 1 Notes ===")
+            part1 = parts[0]
+            
+            # Strip Part 1 to only Voice 1 using the pattern from rules
+            score_copy = copy.deepcopy(score)
+            part1_copy = score_copy.parts[0]
+            for meas in part1_copy.getElementsByClass(music21.stream.Measure):
+                voices = meas.getElementsByClass(music21.stream.Voice)
+                for v in voices:
+                    if v.id != '1':
+                        meas.remove(v)
+            
+            voice1_notes = list(part1_copy.recurse().getElementsByClass(['Note', 'Chord']))
+            
+            print(f"Found {len(voice1_notes)} notes/chords in Voice 1:")
+            
+            for i, note in enumerate(voice1_notes, 1):
+                measure = note.getContextByClass(music21.stream.Measure)
+                measure_num = measure.number if measure else "?"
+                offset = note.offset if note.offset is not None else 0.0
+                
+                if note.isNote:
+                    pitch_info = f"{note.pitch.name}{note.pitch.octave}"
+                    duration_info = f"{note.duration.quarterLength}ql"
+                    print(f"  {i:3d}. M{measure_num:2} @{offset:4.1f}: {pitch_info:4s} ({duration_info})")
+                elif note.isChord:
+                    pitch_names = [f"{p.name}{p.octave}" for p in note.pitches]
+                    pitch_info = "[" + ", ".join(pitch_names) + "]"
+                    duration_info = f"{note.duration.quarterLength}ql"
+                    print(f"  {i:3d}. M{measure_num:2} @{offset:4.1f}: {pitch_info} ({duration_info})")
+                else:
+                    duration_info = f"{note.duration.quarterLength}ql" if note.duration else "?"
+                    print(f"  {i:3d}. M{measure_num:2} @{offset:4.1f}: REST ({duration_info})")
+            
+            # Output the filtered score to a new MusicXML file
+            output_filename = file_path.stem + "-Soprano" + file_path.suffix
+            output_path = file_path.parent / output_filename
+            score_copy.write('musicxml', fp=str(output_path))
+            print(f"\nFiltered score saved to: {output_filename}")
+        else:
+            print("\n=== Part 1, Voice 1 Notes ===")
+            print("No parts found in the score")
         
     except Exception as e:
         print(f"Error parsing file: {e}", file=sys.stderr)
