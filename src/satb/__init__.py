@@ -55,6 +55,10 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
     
     for v in voices_to_remove:
         score_copy.remove(v, recurse=True)
+
+    # Remove stem direction specifications
+    for n in score_copy.recurse().notes:
+        n.stemDirection = None
     
     # Reinsert the spanners
     score_copy.parts[0].insert(0, spanners)
