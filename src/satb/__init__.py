@@ -124,6 +124,12 @@ def main() -> None:
         help='Enable verbose output'
     )
     
+    parser.add_argument(
+        '--separate',
+        action='store_true',
+        help='Create separate files for each voice (Soprano, Alto, Tenor, Bass)'
+    )
+    
     args = parser.parse_args()
     
     if args.verbose:
@@ -139,7 +145,7 @@ def main() -> None:
         if not file_path.suffix.lower() in ['.xml', '.musicxml', '.mxl']:
             print(f"Warning: '{args.file}' may not be a MusicXML file.")
         
-        # Parse the file and filter to Part 1, Voice 1 (as default behavior)
+        # Parse the file
         print(f"Processing file: {args.file}")
         try:
             score = music21.converter.parse(str(file_path))
@@ -147,33 +153,41 @@ def main() -> None:
             print(f"Error parsing file: {e}", file=sys.stderr)
             sys.exit(1)
 
-        # Define the part/voice mappings for SATB
-        voice_mappings = [
-            (1, 1, "Soprano"),
-            (1, 2, "Alto"),
-            (2, 5, "Tenor"),
-            (2, 6, "Bass")
-        ]
-        
-        for part_num, voice_num, voice_name in voice_mappings:
-            try:
-                filtered_score = extract_part_voice(score, part_num, voice_num)
-                
-                # Save the filtered result
-                output_filename = file_path.stem + f"-{voice_name}" + file_path.suffix
-                output_path = file_path.parent / output_filename
-                filtered_score.write('musicxml', fp=str(output_path))
-                
-                print(f"Filtered score (Part {part_num}, Voice {voice_num}) saved to: {output_filename}")
-                
-            except Exception as e:
-                print(f"Error processing Part {part_num}, Voice {voice_num} ({voice_name}): {e}", file=sys.stderr)
-                # Continue with other voices even if one fails
-                continue
+        if args.separate:
+            # Create separate files for each voice
+            print("Creating separate files for each voice...")
+            
+            # Define the part/voice mappings for SATB
+            voice_mappings = [
+                (1, 1, "Soprano"),
+                (1, 2, "Alto"),
+                (2, 5, "Tenor"),
+                (2, 6, "Bass")
+            ]
+            
+            for part_num, voice_num, voice_name in voice_mappings:
+                try:
+                    filtered_score = extract_part_voice(score, part_num, voice_num)
+                    
+                    # Save the filtered result
+                    output_filename = file_path.stem + f"-{voice_name}" + file_path.suffix
+                    output_path = file_path.parent / output_filename
+                    filtered_score.write('musicxml', fp=str(output_path))
+                    
+                    print(f"Filtered score (Part {part_num}, Voice {voice_num}) saved to: {output_filename}")
+                    
+                except Exception as e:
+                    print(f"Error processing Part {part_num}, Voice {voice_num} ({voice_name}): {e}", file=sys.stderr)
+                    # Continue with other voices even if one fails
+                    continue
+        else:
+            # Create a single 4-part score (default behavior)
+            print("Creating single 4-part score...")
+            print("Error: Single 4-part score creation is not yet implemented.", file=sys.stderr)
+            print("Use --separate flag to create separate files for each voice.", file=sys.stderr)
+            sys.exit(1)
     else:
-        print("SATB - MusicXML processor for SATB choral arrangements")
-        print("Usage: satb <file.xml> [options]")
-        print("Run 'satb --help' for more information.")
+        parser.print_help()
 
 
 if __name__ == '__main__':
