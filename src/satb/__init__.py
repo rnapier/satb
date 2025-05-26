@@ -57,6 +57,68 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
     
     return score_copy
 
+
+def extract_voice_to_part(score: music21.stream.Score, part_number: int, voice_number: int, part_name: str) -> music21.stream.Part:
+    """Extract a voice from a score and return it as a standalone Part.
+    
+    Args:
+        score: The input Score object
+        part_number: The part number containing the voice (1-based)
+        voice_number: The voice number to extract (1-based)
+        part_name: Name for the extracted part
+    
+    Returns:
+        A Part containing only the specified voice
+    """
+    # Use existing function to get a score with just this voice
+    voice_score = extract_part_voice(score, part_number, voice_number)
+    
+    # Get the part and rename it
+    extracted_part = voice_score.parts[0]
+    extracted_part.partName = part_name
+    
+    return extracted_part
+
+
+def create_single_4part_score(score: music21.stream.Score) -> music21.stream.Score:
+    """Convert a combined SATB score to a 4-part score with separate parts.
+    
+    Extracts all 4 voices into separate parts: Soprano, Alto, Tenor, Bass.
+    
+    Args:
+        score: The input Score object with combined voices
+    
+    Returns:
+        A new Score with 4 separate parts
+    """
+    # Create new score
+    result_score = music21.stream.Score()
+    
+    # Copy metadata from original
+    if score.metadata:
+        result_score.metadata = copy.deepcopy(score.metadata)
+    
+    # Extract each voice as a separate part
+    # Based on the voice mappings from the existing code:
+    # Soprano: Part 1, Voice 1
+    # Alto: Part 1, Voice 2
+    # Tenor: Part 2, Voice 5
+    # Bass: Part 2, Voice 6
+    
+    soprano_part = extract_voice_to_part(score, 1, 1, "Soprano")
+    alto_part = extract_voice_to_part(score, 1, 2, "Alto")
+    tenor_part = extract_voice_to_part(score, 2, 5, "Tenor")
+    bass_part = extract_voice_to_part(score, 2, 6, "Bass")
+    
+    # Add parts to the new score in SATB order
+    result_score.append(soprano_part)
+    result_score.append(alto_part)
+    result_score.append(tenor_part)
+    result_score.append(bass_part)
+    
+    return result_score
+
+
 def process_voices_to_parts(file_path: Path, verbose: bool = False) -> None:
     """Process a MusicXML file using voicesToParts() and save to a new file."""
     try:
@@ -183,9 +245,28 @@ def main() -> None:
         else:
             # Create a single 4-part score (default behavior)
             print("Creating single 4-part score...")
-            print("Error: Single 4-part score creation is not yet implemented.", file=sys.stderr)
-            print("Use --separate flag to create separate files for each voice.", file=sys.stderr)
-            sys.exit(1)
+            
+            try:
+                # Convert to 4-part score
+                four_part_score = create_single_4part_score(score)
+                
+                # Save the result
+                output_filename = file_path.stem + "-4part" + file_path.suffix
+                output_path = file_path.parent / output_filename
+                four_part_score.write('musicxml', fp=str(output_path))
+                
+                print(f"4-part score saved to: {output_filename}")
+                
+                if args.verbose:
+                    print(f"\n4-part score contains {len(four_part_score.parts)} parts:")
+                    for i, part in enumerate(four_part_score.parts, 1):
+                        part_name = part.partName or f"Part {i}"
+                        notes = list(part.recurse().getElementsByClass(['Note', 'Chord']))
+                        print(f"  Part {i}: {part_name} - {len(notes)} notes/chords")
+                
+            except Exception as e:
+                print(f"Error creating 4-part score: {e}", file=sys.stderr)
+                sys.exit(1)
     else:
         parser.print_help()
 
