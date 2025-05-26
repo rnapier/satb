@@ -65,6 +65,8 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
         n.stemDirection = None
 
         # FIXME: Maybe not just lyrics[0]
+        # This is a bug in Music21; doesn't support <extend>
+        # https://github.com/cuthbertLab/music21/issues/516
         if n.lyrics:
             if n.tie:
                 if n.tie.type == 'start':
@@ -73,7 +75,18 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
                     n.lyrics[0].syllabic = 'middle'
                 elif n.tie.type == 'stop':
                     n.lyrics[0].syllabic = 'end'
-
+            else:
+                # FIXME: This is ugly code
+                spans = n.getSpannerSites()
+                if spans:
+                    for span in spans:
+                        if isinstance(span, music21.spanner.Slur):
+                            if span[0] == n:
+                                n.lyrics[0].syllabic = 'begin'
+                            elif span[-1] == n:
+                                n.lyrics[0].syllabic = 'end'
+                            else:
+                                n.lyrics[0].syllabic = 'middle'
     
     # Copy lyrics from Soprano voice if available and current note has no lyric
     if lyrics_stream is not None:
