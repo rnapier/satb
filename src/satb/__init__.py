@@ -80,6 +80,7 @@ def extract_voice_to_part(score: music21.stream.Score, part_number: int, voice_n
     # Get the part and rename it
     extracted_part = voice_score.parts[0]
     extracted_part.partName = part_name
+    extracted_part.partAbbreviation = part_name
     
     return extracted_part
 
@@ -100,7 +101,10 @@ def create_single_4part_score(score: music21.stream.Score) -> music21.stream.Sco
     # Copy metadata from original
     if score.metadata:
         result_score.metadata = copy.deepcopy(score.metadata)
-    
+
+    # Music21 sets this to the filename by default.
+    result_score.metadata.movementName = None
+
     # Extract each voice as a separate part
     # Based on the voice mappings from the existing code:
     # Soprano: Part 1, Voice 1
