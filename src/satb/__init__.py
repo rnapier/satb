@@ -151,6 +151,48 @@ def process_musicxml_file(file_path: Path, verbose: bool = False) -> None:
         sys.exit(1)
 
 
+def process_voices_to_parts(file_path: Path, verbose: bool = False) -> None:
+    """Process a MusicXML file using voicesToParts() and save to a new file."""
+    try:
+        # Parse the file using music21
+        score = music21.converter.parse(str(file_path))
+        
+        print(f"Processing file: {file_path.name}")
+        print(f"Title: {score.metadata.title or 'Not specified'}")
+        print(f"Composer: {score.metadata.composer or 'Not specified'}")
+        
+        # Get original part count
+        original_parts = len(score.parts)
+        print(f"Original parts: {original_parts}")
+        
+        # Convert voices to parts
+        converted_score = score.voicesToParts()
+        
+        # Get new part count
+        new_parts = len(converted_score.parts)
+        print(f"Parts after voicesToParts(): {new_parts}")
+        
+        if verbose:
+            print("\n=== Parts Details ===")
+            for i, part in enumerate(converted_score.parts, 1):
+                part_name = part.partName or f"Part {i}"
+                instrument = part.getInstrument()
+                instrument_name = instrument.instrumentName if instrument is not None else "Unknown"
+                
+                notes = list(part.recurse().getElementsByClass(['Note', 'Chord']))
+                print(f"  Part {i}: {part_name} ({instrument_name}) - {len(notes)} notes/chords")
+        
+        # Output the converted score to a new MusicXML file
+        output_filename = file_path.stem + "-open" + file_path.suffix
+        output_path = file_path.parent / output_filename
+        converted_score.write('musicxml', fp=str(output_path))
+        print(f"\nConverted score saved to: {output_filename}")
+        
+    except Exception as e:
+        print(f"Error processing file: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main() -> None:
     """Main entry point for the SATB command-line tool."""
     parser = argparse.ArgumentParser(
@@ -191,8 +233,7 @@ def main() -> None:
         if not file_path.suffix.lower() in ['.xml', '.musicxml', '.mxl']:
             print(f"Warning: '{args.file}' may not be a MusicXML file.")
         
-        print(f"Processing file: {args.file}")
-        process_musicxml_file(file_path, args.verbose)
+        process_voices_to_parts(file_path, args.verbose)
     else:
         print("SATB - MusicXML processor for SATB choral arrangements")
         print("Usage: satb <file.xml> [options]")
