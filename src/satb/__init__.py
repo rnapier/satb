@@ -13,6 +13,87 @@ except ImportError:
     sys.exit(1)
 
 
+def process_musicxml_file(file_path: Path, verbose: bool = False) -> None:
+    """Process a MusicXML file and display its top-level structures."""
+    try:
+        # Parse the file using music21
+        score = music21.converter.parse(str(file_path))
+        
+        print("\n=== Top-Level Structure Analysis ===")
+        
+        # Basic file information
+        print(f"Title: {score.metadata.title or 'Not specified'}")
+        print(f"Composer: {score.metadata.composer or 'Not specified'}")
+        
+        # Get all parts
+        parts = score.parts
+        print(f"\nNumber of parts: {len(parts)}")
+        
+        for i, part in enumerate(parts, 1):
+            part_name = part.partName or f"Part {i}"
+            instrument = part.getInstrument()
+            instrument_name = instrument.instrumentName if instrument is not None else "Unknown"
+            
+            print(f"  Part {i}: {part_name} ({instrument_name})")
+            
+            # Count measures and notes using recurse()
+            measures = list(part.recurse().getElementsByClass(music21.stream.Measure))
+            notes = list(part.recurse().getElementsByClass(['Note', 'Chord']))
+            
+            print(f"    Measures: {len(measures)}")
+            print(f"    Notes/Chords: {len(notes)}")
+            
+            if verbose:
+                # Show key signature and time signature
+                key_sig = list(part.recurse().getElementsByClass(music21.key.KeySignature))
+                time_sig = list(part.recurse().getElementsByClass(music21.meter.TimeSignature))
+                
+                if key_sig:
+                    print(f"    Key signature: {key_sig[0]}")
+                if time_sig:
+                    print(f"    Time signature: {time_sig[0]}")
+        
+        # Overall score information using recurse()
+        all_notes = list(score.recurse().getElementsByClass(['Note', 'Chord']))
+        print(f"\nTotal notes/chords in score: {len(all_notes)}")
+        
+        # Get key and time signatures from the score
+        key_signatures = list(score.recurse().getElementsByClass(music21.key.KeySignature))
+        time_signatures = list(score.recurse().getElementsByClass(music21.meter.TimeSignature))
+        
+        if key_signatures:
+            print(f"Key signature: {key_signatures[0]}")
+        if time_signatures:
+            print(f"Time signature: {time_signatures[0]}")
+        
+        # Analyze if this looks like SATB
+        if len(parts) == 4:
+            print("\n=== SATB Analysis ===")
+            print("This appears to be a 4-part score (potentially SATB)")
+            
+            for i, part in enumerate(parts):
+                part_name = part.partName or f"Part {i+1}"
+                
+                # Get the range of notes in this part using recurse()
+                notes = list(part.recurse().getElementsByClass(['Note', 'Chord']))
+                if notes:
+                    pitches = []
+                    for note in notes:
+                        if note.pitch is not None:
+                            pitches.append(note.pitch)
+                        elif getattr(note, 'pitches', None) is not None:  # chord
+                            pitches.extend(note.pitches)
+                    
+                    if pitches:
+                        lowest = min(pitches, key=lambda p: p.midi)
+                        highest = max(pitches, key=lambda p: p.midi)
+                        print(f"  {part_name}: Range {lowest.name}{lowest.octave} - {highest.name}{highest.octave}")
+        
+    except Exception as e:
+        print(f"Error parsing file: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main() -> None:
     """Main entry point for the SATB command-line tool."""
     parser = argparse.ArgumentParser(
@@ -54,7 +135,7 @@ def main() -> None:
             print(f"Warning: '{args.file}' may not be a MusicXML file.")
         
         print(f"Processing file: {args.file}")
-        print("(Processing functionality not yet implemented)")
+        process_musicxml_file(file_path, args.verbose)
     else:
         print("SATB - MusicXML processor for SATB choral arrangements")
         print("Usage: satb <file.xml> [options]")
