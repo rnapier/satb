@@ -95,8 +95,19 @@ def process_musicxml_file(file_path: Path, verbose: bool = False) -> None:
             print("\n=== Part 1, Voice 1 Notes ===")
             part1 = parts[0]
             
-            # Strip Part 1 to only Voice 1 using the pattern from rules
+            # Strip to only Part 1, Voice 1 using the pattern from rules
             score_copy = copy.deepcopy(score)
+            
+            # Remove all parts except Part 1
+            parts_to_remove = []
+            for i, part in enumerate(score_copy.parts):
+                if i != 0:  # Keep only the first part (index 0)
+                    parts_to_remove.append(part)
+            
+            for part in parts_to_remove:
+                score_copy.remove(part)
+            
+            # Now strip Part 1 to only Voice 1
             part1_copy = score_copy.parts[0]
             for meas in part1_copy.getElementsByClass(music21.stream.Measure):
                 voices = meas.getElementsByClass(music21.stream.Voice)
