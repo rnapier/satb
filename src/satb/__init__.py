@@ -6,6 +6,7 @@ import argparse
 import copy
 import sys
 from pathlib import Path
+from typing import Optional
 
 try:
     import music21
@@ -14,7 +15,7 @@ except ImportError:
     sys.exit(1)
 
 
-def extract_part_voice(score: music21.stream.Score, part_number: int, voice_number: int) -> music21.stream.Score:
+def extract_part_voice(score: music21.stream.Score, part_number: int, voice_number: int, lyrics_stream: Optional[music21.stream.Stream]) -> music21.stream.Score:
     """Filter a Score to contain only the specified part and voice.
     
     Args:
@@ -60,13 +61,32 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
     for n in score_copy.recurse().notes:
         n.stemDirection = None
     
+    # Copy lyrics from Soprano voice if available and current note has no lyric
+    if lyrics_stream is not None:
+
+        lyrics_in = lyrics_stream.recurse().notes.stream()
+        lyrics_out = score_copy.recurse().notes.stream()
+
+        for note in lyrics_out:
+            # Check if note has no lyric
+            if not note.lyric and (note.tie == None or note.tie.type == 'start'):
+                # Find the equivalent note in first_voice using offset
+                offset = note.getOffsetBySite(lyrics_out)
+                corresponding_notes = lyrics_in.getElementsByOffset(offset)
+
+                if corresponding_notes:
+                    # Get the first corresponding note and copy its lyric if it exists
+                    first_note = corresponding_notes[0]
+                    if first_note.lyrics:
+                        note.lyrics = first_note.lyrics
+    
     # Reinsert the spanners
     score_copy.parts[0].insert(0, spanners)
 
     return score_copy
 
 
-def extract_voice_to_part(score: music21.stream.Score, part_number: int, voice_number: int, part_name: str) -> music21.stream.Part:
+def extract_voice_to_part(score: music21.stream.Score, part_number: int, voice_number: int, part_name: str, lyrics_stream: Optional[music21.stream.Stream]) -> music21.stream.Part:
     """Extract a voice from a score and return it as a standalone Part.
     
     Args:
@@ -79,7 +99,7 @@ def extract_voice_to_part(score: music21.stream.Score, part_number: int, voice_n
         A Part containing only the specified voice
     """
     # Use existing function to get a score with just this voice
-    voice_score = extract_part_voice(score, part_number, voice_number)
+    voice_score = extract_part_voice(score, part_number, voice_number, lyrics_stream)
     
     # Get the part and rename it
     extracted_part = voice_score.parts[0]
@@ -116,10 +136,10 @@ def create_single_4part_score(score: music21.stream.Score) -> music21.stream.Sco
     # Tenor: Part 2, Voice 5
     # Bass: Part 2, Voice 6
     
-    soprano_part = extract_voice_to_part(score, 1, 1, "Soprano")
-    alto_part = extract_voice_to_part(score, 1, 2, "Alto")
-    tenor_part = extract_voice_to_part(score, 2, 5, "Tenor")
-    bass_part = extract_voice_to_part(score, 2, 6, "Bass")
+    soprano_part = extract_voice_to_part(score, 1, 1, "Soprano", None)
+    alto_part = extract_voice_to_part(score, 1, 2, "Alto", soprano_part)
+    tenor_part = extract_voice_to_part(score, 2, 5, "Tenor", soprano_part)
+    bass_part = extract_voice_to_part(score, 2, 6, "Bass", soprano_part)
     
     # Add parts to the new score in SATB order
     result_score.append(soprano_part)
