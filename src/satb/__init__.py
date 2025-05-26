@@ -57,9 +57,23 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
     for v in voices_to_remove:
         score_copy.remove(v, recurse=True)
 
+    # Reinsert the spanners
+    score_copy.parts[0].insert(0, spanners)
+
     # Remove stem direction specifications
     for n in score_copy.recurse().notes:
         n.stemDirection = None
+
+        # FIXME: Maybe not just lyrics[0]
+        if n.lyrics:
+            if n.tie:
+                if n.tie.type == 'start':
+                    n.lyrics[0].syllabic = 'begin'
+                elif n.tie.type == 'continue':
+                    n.lyrics[0].syllabic = 'middle'
+                elif n.tie.type == 'stop':
+                    n.lyrics[0].syllabic = 'end'
+
     
     # Copy lyrics from Soprano voice if available and current note has no lyric
     if lyrics_stream is not None:
@@ -80,9 +94,6 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
                     if first_note.lyrics:
                         note.lyrics = first_note.lyrics
     
-    # Reinsert the spanners
-    score_copy.parts[0].insert(0, spanners)
-
     return score_copy
 
 
