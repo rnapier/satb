@@ -32,6 +32,9 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
     if part_number < 1 or part_number > len(score_copy.parts):
         raise ValueError(f"Part number {part_number} is out of range (1-{len(score_copy.parts)})")
     
+    # Save the Spanners to reapply
+    spanners = score_copy.parts[0].spanners
+
     # Remove all parts except the specified one
     parts_to_remove = []
     for i, part in enumerate(score_copy.parts):
@@ -55,6 +58,9 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
         for v in voices_to_remove:
             meas.remove(v)
     
+    # Reinsert the spanners
+    score_copy.parts[0].insert(0, spanners.stream())
+
     return score_copy
 
 
@@ -119,46 +125,46 @@ def create_single_4part_score(score: music21.stream.Score) -> music21.stream.Sco
     return result_score
 
 
-def process_voices_to_parts(file_path: Path, verbose: bool = False) -> None:
-    """Process a MusicXML file using voicesToParts() and save to a new file."""
-    try:
-        # Parse the file using music21
-        score = music21.converter.parse(str(file_path))
+# def process_voices_to_parts(file_path: Path, verbose: bool = False) -> None:
+#     """Process a MusicXML file using voicesToParts() and save to a new file."""
+#     try:
+#         # Parse the file using music21
+#         score = music21.converter.parse(str(file_path))
         
-        print(f"Processing file: {file_path.name}")
-        print(f"Title: {score.metadata.title or 'Not specified'}")
-        print(f"Composer: {score.metadata.composer or 'Not specified'}")
+#         print(f"Processing file: {file_path.name}")
+#         print(f"Title: {score.metadata.title or 'Not specified'}")
+#         print(f"Composer: {score.metadata.composer or 'Not specified'}")
         
-        # Get original part count
-        original_parts = len(score.parts)
-        print(f"Original parts: {original_parts}")
+#         # Get original part count
+#         original_parts = len(score.parts)
+#         print(f"Original parts: {original_parts}")
         
-        # Convert voices to parts
-        converted_score = score.voicesToParts()
+#         # Convert voices to parts
+#         converted_score = score.voicesToParts()
         
-        # Get new part count
-        new_parts = len(converted_score.parts)
-        print(f"Parts after voicesToParts(): {new_parts}")
+#         # Get new part count
+#         new_parts = len(converted_score.parts)
+#         print(f"Parts after voicesToParts(): {new_parts}")
         
-        if verbose:
-            print("\n=== Parts Details ===")
-            for i, part in enumerate(converted_score.parts, 1):
-                part_name = part.partName or f"Part {i}"
-                instrument = part.getInstrument()
-                instrument_name = instrument.instrumentName if instrument is not None else "Unknown"
+#         if verbose:
+#             print("\n=== Parts Details ===")
+#             for i, part in enumerate(converted_score.parts, 1):
+#                 part_name = part.partName or f"Part {i}"
+#                 instrument = part.getInstrument()
+#                 instrument_name = instrument.instrumentName if instrument is not None else "Unknown"
                 
-                notes = list(part.recurse().getElementsByClass(['Note', 'Chord']))
-                print(f"  Part {i}: {part_name} ({instrument_name}) - {len(notes)} notes/chords")
+#                 notes = list(part.recurse().getElementsByClass(['Note', 'Chord']))
+#                 print(f"  Part {i}: {part_name} ({instrument_name}) - {len(notes)} notes/chords")
         
-        # Output the converted score to a new MusicXML file
-        output_filename = file_path.stem + "-open" + file_path.suffix
-        output_path = file_path.parent / output_filename
-        converted_score.write('musicxml', fp=str(output_path))
-        print(f"\nConverted score saved to: {output_filename}")
+#         # Output the converted score to a new MusicXML file
+#         output_filename = file_path.stem + "-open" + file_path.suffix
+#         output_path = file_path.parent / output_filename
+#         converted_score.write('musicxml', fp=str(output_path))
+#         print(f"\nConverted score saved to: {output_filename}")
         
-    except Exception as e:
-        print(f"Error processing file: {e}", file=sys.stderr)
-        sys.exit(1)
+#     except Exception as e:
+#         print(f"Error processing file: {e}", file=sys.stderr)
+#         sys.exit(1)
 
 
 def main() -> None:
