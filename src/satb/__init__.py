@@ -14,140 +14,116 @@ except ImportError:
     sys.exit(1)
 
 
-def process_musicxml_file(file_path: Path, verbose: bool = False) -> None:
-    """Process a MusicXML file and display its top-level structures."""
+def process_musicxml_file(score: music21.stream.Score, part_number: int, voice_number: int) -> music21.stream.Score:
+    """Filter a Score to contain only the specified part and voice.
+    
+    Args:
+        score: The input Score object
+        part_number: The part number to keep (1-based)
+        voice_number: The voice number to keep within that part (1-based)
+    
+    Returns:
+        A new Score containing only the specified part and voice
+    """
+    # Make a deep copy to avoid modifying the original
+    score_copy = copy.deepcopy(score)
+    
+    # Validate part number
+    if part_number < 1 or part_number > len(score_copy.parts):
+        raise ValueError(f"Part number {part_number} is out of range (1-{len(score_copy.parts)})")
+    
+    # Remove all parts except the specified one
+    parts_to_remove = []
+    for i, part in enumerate(score_copy.parts):
+        if i != (part_number - 1):  # Convert to 0-based index
+            parts_to_remove.append(part)
+    
+    for part in parts_to_remove:
+        score_copy.remove(part)
+    
+    # Now strip the remaining part to only the specified voice
+    target_part = score_copy.parts[0]
+    voice_id = str(voice_number)
+    
+    for meas in target_part.getElementsByClass(music21.stream.Measure):
+        voices = meas.getElementsByClass(music21.stream.Voice)
+        voices_to_remove = []
+        for v in voices:
+            if v.id != voice_id:
+                voices_to_remove.append(v)
+        
+        for v in voices_to_remove:
+            meas.remove(v)
+    
+    return score_copy
+
+
+def test_refactored_function() -> None:
+    """Test the refactored process_musicxml_file function with different parameters."""
+    try:
+        # Parse the test file
+        score = music21.converter.parse("Crossing The Bar.musicxml")
+        
+        print("=== Testing Refactored Function ===")
+        print(f"Original score: {len(score.parts)} parts")
+        
+        # Test filtering to Part 1, Voice 1
+        filtered_score_p1v1 = process_musicxml_file(score, 1, 1)
+        print(f"Part 1, Voice 1: {len(list(filtered_score_p1v1.recurse().getElementsByClass(['Note', 'Chord'])))} notes")
+        
+        # Test filtering to Part 2, Voice 1
+        filtered_score_p2v1 = process_musicxml_file(score, 2, 1)
+        print(f"Part 2, Voice 1: {len(list(filtered_score_p2v1.recurse().getElementsByClass(['Note', 'Chord'])))} notes")
+        
+        # Save test files
+        filtered_score_p1v1.write('musicxml', fp="test-part1-voice1.musicxml")
+        filtered_score_p2v1.write('musicxml', fp="test-part2-voice1.musicxml")
+        
+        print("Test files saved: test-part1-voice1.musicxml, test-part2-voice1.musicxml")
+        
+    except Exception as e:
+        print(f"Test error: {e}")
+
+
+def process_voices_to_parts(file_path: Path, verbose: bool = False) -> None:
+    """Process a MusicXML file using voicesToParts() and save to a new file."""
     try:
         # Parse the file using music21
         score = music21.converter.parse(str(file_path))
         
-        print("\n=== Top-Level Structure Analysis ===")
-        
-        # Basic file information
+        print(f"Processing file: {file_path.name}")
         print(f"Title: {score.metadata.title or 'Not specified'}")
         print(f"Composer: {score.metadata.composer or 'Not specified'}")
         
-        # Get all parts
-        parts = score.parts
-        print(f"\nNumber of parts: {len(parts)}")
+        # Get original part count
+        original_parts = len(score.parts)
+        print(f"Original parts: {original_parts}")
         
-        for i, part in enumerate(parts, 1):
-            part_name = part.partName or f"Part {i}"
-            instrument = part.getInstrument()
-            instrument_name = instrument.instrumentName if instrument is not None else "Unknown"
-            
-            print(f"  Part {i}: {part_name} ({instrument_name})")
-            
-            # Count measures and notes using recurse()
-            measures = list(part.recurse().getElementsByClass(music21.stream.Measure))
-            notes = list(part.recurse().getElementsByClass(['Note', 'Chord']))
-            
-            print(f"    Measures: {len(measures)}")
-            print(f"    Notes/Chords: {len(notes)}")
-            
-            if verbose:
-                # Show key signature and time signature
-                key_sig = list(part.recurse().getElementsByClass(music21.key.KeySignature))
-                time_sig = list(part.recurse().getElementsByClass(music21.meter.TimeSignature))
+        # Convert voices to parts
+        converted_score = score.voicesToParts()
+        
+        # Get new part count
+        new_parts = len(converted_score.parts)
+        print(f"Parts after voicesToParts(): {new_parts}")
+        
+        if verbose:
+            print("\n=== Parts Details ===")
+            for i, part in enumerate(converted_score.parts, 1):
+                part_name = part.partName or f"Part {i}"
+                instrument = part.getInstrument()
+                instrument_name = instrument.instrumentName if instrument is not None else "Unknown"
                 
-                if key_sig:
-                    print(f"    Key signature: {key_sig[0]}")
-                if time_sig:
-                    print(f"    Time signature: {time_sig[0]}")
-        
-        # Overall score information using recurse()
-        all_notes = list(score.recurse().getElementsByClass(['Note', 'Chord']))
-        print(f"\nTotal notes/chords in score: {len(all_notes)}")
-        
-        # Get key and time signatures from the score
-        key_signatures = list(score.recurse().getElementsByClass(music21.key.KeySignature))
-        time_signatures = list(score.recurse().getElementsByClass(music21.meter.TimeSignature))
-        
-        if key_signatures:
-            print(f"Key signature: {key_signatures[0]}")
-        if time_signatures:
-            print(f"Time signature: {time_signatures[0]}")
-        
-        # Analyze if this looks like SATB
-        if len(parts) == 4:
-            print("\n=== SATB Analysis ===")
-            print("This appears to be a 4-part score (potentially SATB)")
-            
-            for i, part in enumerate(parts):
-                part_name = part.partName or f"Part {i+1}"
-                
-                # Get the range of notes in this part using recurse()
                 notes = list(part.recurse().getElementsByClass(['Note', 'Chord']))
-                if notes:
-                    pitches = []
-                    for note in notes:
-                        if note.pitch is not None:
-                            pitches.append(note.pitch)
-                        elif getattr(note, 'pitches', None) is not None:  # chord
-                            pitches.extend(note.pitches)
-                    
-                    if pitches:
-                        lowest = min(pitches, key=lambda p: p.midi)
-                        highest = max(pitches, key=lambda p: p.midi)
-                        print(f"  {part_name}: Range {lowest.name}{lowest.octave} - {highest.name}{highest.octave}")
+                print(f"  Part {i}: {part_name} ({instrument_name}) - {len(notes)} notes/chords")
         
-        # Output all notes in Part 1, Voice 1
-        if parts:
-            print("\n=== Part 1, Voice 1 Notes ===")
-            part1 = parts[0]
-            
-            # Strip to only Part 1, Voice 1 using the pattern from rules
-            score_copy = copy.deepcopy(score)
-            
-            # Remove all parts except Part 1
-            parts_to_remove = []
-            for i, part in enumerate(score_copy.parts):
-                if i != 0:  # Keep only the first part (index 0)
-                    parts_to_remove.append(part)
-            
-            for part in parts_to_remove:
-                score_copy.remove(part)
-            
-            # Now strip Part 1 to only Voice 1
-            part1_copy = score_copy.parts[0]
-            for meas in part1_copy.getElementsByClass(music21.stream.Measure):
-                voices = meas.getElementsByClass(music21.stream.Voice)
-                for v in voices:
-                    if v.id != '1':
-                        meas.remove(v)
-            
-            voice1_notes = list(part1_copy.recurse().getElementsByClass(['Note', 'Chord']))
-            
-            print(f"Found {len(voice1_notes)} notes/chords in Voice 1:")
-            
-            for i, note in enumerate(voice1_notes, 1):
-                measure = note.getContextByClass(music21.stream.Measure)
-                measure_num = measure.number if measure else "?"
-                offset = note.offset if note.offset is not None else 0.0
-                
-                if note.isNote:
-                    pitch_info = f"{note.pitch.name}{note.pitch.octave}"
-                    duration_info = f"{note.duration.quarterLength}ql"
-                    print(f"  {i:3d}. M{measure_num:2} @{offset:4.1f}: {pitch_info:4s} ({duration_info})")
-                elif note.isChord:
-                    pitch_names = [f"{p.name}{p.octave}" for p in note.pitches]
-                    pitch_info = "[" + ", ".join(pitch_names) + "]"
-                    duration_info = f"{note.duration.quarterLength}ql"
-                    print(f"  {i:3d}. M{measure_num:2} @{offset:4.1f}: {pitch_info} ({duration_info})")
-                else:
-                    duration_info = f"{note.duration.quarterLength}ql" if note.duration else "?"
-                    print(f"  {i:3d}. M{measure_num:2} @{offset:4.1f}: REST ({duration_info})")
-            
-            # Output the filtered score to a new MusicXML file
-            output_filename = file_path.stem + "-Soprano" + file_path.suffix
-            output_path = file_path.parent / output_filename
-            score_copy.write('musicxml', fp=str(output_path))
-            print(f"\nFiltered score saved to: {output_filename}")
-        else:
-            print("\n=== Part 1, Voice 1 Notes ===")
-            print("No parts found in the score")
+        # Output the converted score to a new MusicXML file
+        output_filename = file_path.stem + "-open" + file_path.suffix
+        output_path = file_path.parent / output_filename
+        converted_score.write('musicxml', fp=str(output_path))
+        print(f"\nConverted score saved to: {output_filename}")
         
     except Exception as e:
-        print(f"Error parsing file: {e}", file=sys.stderr)
+        print(f"Error processing file: {e}", file=sys.stderr)
         sys.exit(1)
 
 
@@ -191,8 +167,22 @@ def main() -> None:
         if not file_path.suffix.lower() in ['.xml', '.musicxml', '.mxl']:
             print(f"Warning: '{args.file}' may not be a MusicXML file.")
         
+        # Parse the file and filter to Part 1, Voice 1 (as default behavior)
         print(f"Processing file: {args.file}")
-        process_musicxml_file(file_path, args.verbose)
+        try:
+            score = music21.converter.parse(str(file_path))
+            filtered_score = process_musicxml_file(score, 1, 1)
+            
+            # Save the filtered result
+            output_filename = file_path.stem + "-Soprano" + file_path.suffix
+            output_path = file_path.parent / output_filename
+            filtered_score.write('musicxml', fp=str(output_path))
+            
+            print(f"Filtered score (Part 1, Voice 1) saved to: {output_filename}")
+            
+        except Exception as e:
+            print(f"Error processing file: {e}", file=sys.stderr)
+            sys.exit(1)
     else:
         print("SATB - MusicXML processor for SATB choral arrangements")
         print("Usage: satb <file.xml> [options]")
