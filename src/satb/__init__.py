@@ -14,7 +14,7 @@ except ImportError:
     sys.exit(1)
 
 
-def process_musicxml_file(score: music21.stream.Score, part_number: int, voice_number: int) -> music21.stream.Score:
+def extract_part_voice(score: music21.stream.Score, part_number: int, voice_number: int) -> music21.stream.Score:
     """Filter a Score to contain only the specified part and voice.
     
     Args:
@@ -56,34 +56,6 @@ def process_musicxml_file(score: music21.stream.Score, part_number: int, voice_n
             meas.remove(v)
     
     return score_copy
-
-
-def test_refactored_function() -> None:
-    """Test the refactored process_musicxml_file function with different parameters."""
-    try:
-        # Parse the test file
-        score = music21.converter.parse("Crossing The Bar.musicxml")
-        
-        print("=== Testing Refactored Function ===")
-        print(f"Original score: {len(score.parts)} parts")
-        
-        # Test filtering to Part 1, Voice 1
-        filtered_score_p1v1 = process_musicxml_file(score, 1, 1)
-        print(f"Part 1, Voice 1: {len(list(filtered_score_p1v1.recurse().getElementsByClass(['Note', 'Chord'])))} notes")
-        
-        # Test filtering to Part 2, Voice 1
-        filtered_score_p2v1 = process_musicxml_file(score, 2, 1)
-        print(f"Part 2, Voice 1: {len(list(filtered_score_p2v1.recurse().getElementsByClass(['Note', 'Chord'])))} notes")
-        
-        # Save test files
-        filtered_score_p1v1.write('musicxml', fp="test-part1-voice1.musicxml")
-        filtered_score_p2v1.write('musicxml', fp="test-part2-voice1.musicxml")
-        
-        print("Test files saved: test-part1-voice1.musicxml, test-part2-voice1.musicxml")
-        
-    except Exception as e:
-        print(f"Test error: {e}")
-
 
 def process_voices_to_parts(file_path: Path, verbose: bool = False) -> None:
     """Process a MusicXML file using voicesToParts() and save to a new file."""
@@ -171,18 +143,33 @@ def main() -> None:
         print(f"Processing file: {args.file}")
         try:
             score = music21.converter.parse(str(file_path))
-            filtered_score = process_musicxml_file(score, 1, 1)
-            
-            # Save the filtered result
-            output_filename = file_path.stem + "-Soprano" + file_path.suffix
-            output_path = file_path.parent / output_filename
-            filtered_score.write('musicxml', fp=str(output_path))
-            
-            print(f"Filtered score (Part 1, Voice 1) saved to: {output_filename}")
-            
         except Exception as e:
-            print(f"Error processing file: {e}", file=sys.stderr)
+            print(f"Error parsing file: {e}", file=sys.stderr)
             sys.exit(1)
+
+        # Define the part/voice mappings for SATB
+        voice_mappings = [
+            (1, 1, "Soprano"),
+            (1, 2, "Alto"),
+            (2, 5, "Tenor"),
+            (2, 6, "Bass")
+        ]
+        
+        for part_num, voice_num, voice_name in voice_mappings:
+            try:
+                filtered_score = extract_part_voice(score, part_num, voice_num)
+                
+                # Save the filtered result
+                output_filename = file_path.stem + f"-{voice_name}" + file_path.suffix
+                output_path = file_path.parent / output_filename
+                filtered_score.write('musicxml', fp=str(output_path))
+                
+                print(f"Filtered score (Part {part_num}, Voice {voice_num}) saved to: {output_filename}")
+                
+            except Exception as e:
+                print(f"Error processing Part {part_num}, Voice {voice_num} ({voice_name}): {e}", file=sys.stderr)
+                # Continue with other voices even if one fails
+                continue
     else:
         print("SATB - MusicXML processor for SATB choral arrangements")
         print("Usage: satb <file.xml> [options]")
