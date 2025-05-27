@@ -55,32 +55,32 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
         ValueError: If the part_number is out of range
     """
     # Make a deep copy to avoid modifying the original
-    score_copy = copy.deepcopy(score)
+    score = copy.deepcopy(score)
     
     # Validate part number
-    if part_number < 1 or part_number > len(score_copy.parts):
-        raise ValueError(f"Part number {part_number} is out of range (1-{len(score_copy.parts)})")
+    if part_number < 1 or part_number > len(score.parts):
+        raise ValueError(f"Part number {part_number} is out of range (1-{len(score.parts)})")
     
     # Save the Spanners to reapply
-    spanners = copy.deepcopy(score_copy.parts[0].spanners.stream())
+    spanners = copy.deepcopy(score.parts[0].spanners.stream())
 
     # Remove all parts except the specified one (minus one for 1-offset)
-    keep_part = score_copy.parts[part_number - 1]
-    for p in list(score_copy.parts):
+    keep_part = score.parts[part_number - 1]
+    for p in list(score.parts):
         if p is not keep_part:
-            score_copy.remove(p, recurse=True)
+            score.remove(p, recurse=True)
     
     # Now strip the remaining part to only the specified voice
     voice_id = str(voice_number)
-    for v in list(score_copy.recurse().voices):
+    for v in list(score.recurse().voices):
         if v.id != voice_id:
-            score_copy.remove(v, recurse=True)
+            score.remove(v, recurse=True)
 
     # Reinsert the spanners
-    score_copy.parts[0].insert(0, spanners)
+    score.parts[0].insert(0, spanners)
 
-    # Remove stem direction specifications
-    for n in score_copy.recurse().notes:
+    for n in score.recurse().notes:
+        # Remove stem direction specifications
         n.stemDirection = None
 
         # FIXME: Maybe not just lyrics[0]?
@@ -112,7 +112,7 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
     if lyrics_stream is not None:
 
         lyrics_in = lyrics_stream.recurse().notes.stream()
-        lyrics_out = score_copy.recurse().notes.stream()
+        lyrics_out = score.recurse().notes.stream()
 
         for note in lyrics_out:
             # Check if note has no lyric
@@ -138,7 +138,7 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
                     #         print(f"FOUND span: {span}")
 
 
-    return score_copy
+    return score
 
 
 def extract_voice_to_part(score: music21.stream.Score, part_number: int, voice_number: int, part_name: str, lyrics_stream: Optional[music21.stream.Stream]) -> music21.stream.Part:
@@ -193,20 +193,18 @@ def create_single_4part_score(score: music21.stream.Score) -> music21.stream.Sco
     result_score.metadata.movementName = None
 
     # Extract each voice as a separate part using the global voice mappings
-    parts = []
     
-    # First extract the first part (for lyrics)
-    first_part_num, first_voice_num, first_voice_name = VOICE_MAPPINGS[0]
-    first_part = extract_voice_to_part(score, first_part_num, first_voice_num, first_voice_name, None)
-    parts.append(first_part)
+    # # First extract the first part (for lyrics)
+    # first_part_num, first_voice_num, first_voice_name = VOICE_MAPPINGS[0]
+    # first_part = extract_voice_to_part(score, first_part_num, first_voice_num, first_voice_name, None)
+    # result_score.append(first_part)
     
     # Then extract the remaining parts
-    for part_num, voice_num, voice_name in VOICE_MAPPINGS[1:]:
+    first_part = None
+    for part_num, voice_num, voice_name in VOICE_MAPPINGS:
         part = extract_voice_to_part(score, part_num, voice_num, voice_name, first_part)
-        parts.append(part)
-    
-    # Add parts to the new score in order
-    for part in parts:
+        if not first_part:
+            first_part = part
         result_score.append(part)
     
     return result_score
