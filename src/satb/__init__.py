@@ -191,6 +191,82 @@ def create_single_4part_score(score: music21.stream.Score) -> music21.stream.Sco
     
     return result_score
 
+def process_separate_files(score: music21.stream.Score, file_path: Path) -> None:
+    """Process a score into separate files for each voice.
+    
+    Args:
+        score: The input Score object
+        file_path: Path to the original file
+    """
+    print("Creating separate files for each voice...")
+    
+    # First extract the first voice to use as lyrics source
+    first_part_num, first_voice_num, first_voice_name = VOICE_MAPPINGS[0]
+    try:
+        first_voice_score = extract_part_voice(score, first_part_num, first_voice_num, None)
+        
+        # Save the first voice
+        output_filename = file_path.stem + f"-{first_voice_name}" + file_path.suffix
+        output_path = file_path.parent / output_filename
+        first_voice_score.write('musicxml', fp=str(output_path))
+        
+        print(f"Filtered score (Part {first_part_num}, Voice {first_voice_num}) saved to: {output_filename}")
+        
+        # Process remaining voices
+        for part_num, voice_num, voice_name in VOICE_MAPPINGS[1:]:
+            try:
+                filtered_score = extract_part_voice(score, part_num, voice_num, first_voice_score)
+                
+                # Save the filtered result
+                output_filename = file_path.stem + f"-{voice_name}" + file_path.suffix
+                output_path = file_path.parent / output_filename
+                filtered_score.write('musicxml', fp=str(output_path))
+                
+                print(f"Filtered score (Part {part_num}, Voice {voice_num}) saved to: {output_filename}")
+                
+            except Exception as e:
+                print(f"Error processing Part {part_num}, Voice {voice_num} ({voice_name}): {e}", file=sys.stderr)
+                # Continue with other voices even if one fails
+                continue
+                
+    except Exception as e:
+        print(f"Error processing first voice: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def process_combined_file(score: music21.stream.Score, file_path: Path, verbose: bool = False) -> None:
+    """Process a score into a single 4-part score.
+    
+    Args:
+        score: The input Score object
+        file_path: Path to the original file
+        verbose: Whether to print verbose output
+    """
+    print("Creating single 4-part score...")
+    
+    try:
+        # Convert to 4-part score
+        four_part_score = create_single_4part_score(score)
+        
+        # Save the result
+        output_filename = file_path.stem + "-4part" + file_path.suffix
+        output_path = file_path.parent / output_filename
+        four_part_score.write('musicxml', fp=str(output_path))
+        
+        print(f"4-part score saved to: {output_filename}")
+        
+        if verbose:
+            print(f"\n4-part score contains {len(four_part_score.parts)} parts:")
+            for i, part in enumerate(four_part_score.parts, 1):
+                part_name = part.partName or f"Part {i}"
+                notes = list(part.recurse().getElementsByClass(['Note', 'Chord']))
+                print(f"  Part {i}: {part_name} - {len(notes)} notes/chords")
+        
+    except Exception as e:
+        print(f"Error creating 4-part score: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main() -> None:
     """Main entry point for the SATB command-line tool."""
     parser = argparse.ArgumentParser(
@@ -246,69 +322,11 @@ def main() -> None:
             sys.exit(1)
 
         if args.separate:
-            # Create separate files for each voice
-            print("Creating separate files for each voice...")
-            
-            # First extract the first voice to use as lyrics source
-            first_part_num, first_voice_num, first_voice_name = VOICE_MAPPINGS[0]
-            try:
-                first_voice_score = extract_part_voice(score, first_part_num, first_voice_num, None)
-                
-                # Save the first voice
-                output_filename = file_path.stem + f"-{first_voice_name}" + file_path.suffix
-                output_path = file_path.parent / output_filename
-                first_voice_score.write('musicxml', fp=str(output_path))
-                
-                print(f"Filtered score (Part {first_part_num}, Voice {first_voice_num}) saved to: {output_filename}")
-                
-                # Process remaining voices
-                for part_num, voice_num, voice_name in VOICE_MAPPINGS[1:]:
-                    try:
-                        filtered_score = extract_part_voice(score, part_num, voice_num, first_voice_score)
-                        
-                        # Save the filtered result
-                        output_filename = file_path.stem + f"-{voice_name}" + file_path.suffix
-                        output_path = file_path.parent / output_filename
-                        filtered_score.write('musicxml', fp=str(output_path))
-                        
-                        print(f"Filtered score (Part {part_num}, Voice {voice_num}) saved to: {output_filename}")
-                        
-                    except Exception as e:
-                        print(f"Error processing Part {part_num}, Voice {voice_num} ({voice_name}): {e}", file=sys.stderr)
-                        # Continue with other voices even if one fails
-                        continue
-                        
-            except Exception as e:
-                print(f"Error processing first voice: {e}", file=sys.stderr)
-                sys.exit(1)
+            process_separate_files(score, file_path)
         else:
-            # Create a single 4-part score (default behavior)
-            print("Creating single 4-part score...")
-            
-            try:
-                # Convert to 4-part score
-                four_part_score = create_single_4part_score(score)
-                
-                # Save the result
-                output_filename = file_path.stem + "-4part" + file_path.suffix
-                output_path = file_path.parent / output_filename
-                four_part_score.write('musicxml', fp=str(output_path))
-                
-                print(f"4-part score saved to: {output_filename}")
-                
-                if args.verbose:
-                    print(f"\n4-part score contains {len(four_part_score.parts)} parts:")
-                    for i, part in enumerate(four_part_score.parts, 1):
-                        part_name = part.partName or f"Part {i}"
-                        notes = list(part.recurse().getElementsByClass(['Note', 'Chord']))
-                        print(f"  Part {i}: {part_name} - {len(notes)} notes/chords")
-                
-            except Exception as e:
-                print(f"Error creating 4-part score: {e}", file=sys.stderr)
-                sys.exit(1)
+            process_combined_file(score, file_path, args.verbose)
     else:
         parser.print_help()
-
 
 if __name__ == '__main__':
     main()
