@@ -208,7 +208,7 @@ def process_separate_files(score: music21.stream.Score, file_path: Path) -> None
         # Save the first voice
         output_filename = file_path.stem + f"-{first_voice_name}" + file_path.suffix
         output_path = file_path.parent / output_filename
-        first_voice_score.write('musicxml', fp=str(output_path))
+        first_voice_score.write('musicxml', fp=output_path)
         
         print(f"Filtered score (Part {first_part_num}, Voice {first_voice_num}) saved to: {output_filename}")
         
@@ -220,7 +220,7 @@ def process_separate_files(score: music21.stream.Score, file_path: Path) -> None
                 # Save the filtered result
                 output_filename = file_path.stem + f"-{voice_name}" + file_path.suffix
                 output_path = file_path.parent / output_filename
-                filtered_score.write('musicxml', fp=str(output_path))
+                filtered_score.write('musicxml', fp=output_path)
                 
                 print(f"Filtered score (Part {part_num}, Voice {voice_num}) saved to: {output_filename}")
                 
@@ -250,7 +250,7 @@ def process_combined_file(score: music21.stream.Score, file_path: Path) -> None:
         # Save the result
         output_filename = file_path.stem + "-4part" + file_path.suffix
         output_path = file_path.parent / output_filename
-        four_part_score.write('musicxml', fp=str(output_path))
+        four_part_score.write('musicxml', fp=output_path)
         
         print(f"4-part score saved to: {output_filename}")
         
