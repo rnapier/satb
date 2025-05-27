@@ -78,17 +78,16 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
             else:
                 # FIXME: This is ugly code
                 spans = n.getSpannerSites()
-                if spans:
-                    for span in spans:
-                        if isinstance(span, music21.spanner.Slur):
-                            if span[0] == n:
-                                n.lyrics[0].syllabic = 'begin'
-                            elif span[-1] == n:
-                                n.lyrics[0].syllabic = 'end'
-                            else:
-                                n.lyrics[0].syllabic = 'middle'
+                for span in spans:
+                    if isinstance(span, music21.spanner.Slur):
+                        if span[0] == n:
+                            n.lyrics[0].syllabic = 'begin'
+                        elif span[-1] == n:
+                            n.lyrics[0].syllabic = 'end'
+                        else:
+                            n.lyrics[0].syllabic = 'middle'
     
-    # Copy lyrics from Soprano voice if available and current note has no lyric
+    # Copy lyrics and from Soprano voice if available and current note has no lyric
     if lyrics_stream is not None:
 
         lyrics_in = lyrics_stream.recurse().notes.stream()
@@ -106,7 +105,18 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
                     first_note = corresponding_notes[0]
                     if first_note.lyrics:
                         note.lyrics = first_note.lyrics
-    
+
+
+# TODO: Do I need to create a new wedge and insert it in this part?
+                    # for span in corresponding_notes[0].getSpannerSites():
+                    #     if isinstance(span, music21.dynamics.DynamicWedge):
+                    #         print(f"FOUND wedge (voice: {voice_number})")
+                    #         # FIXME: Maybe check if we already have a dynamic?
+                    #         span.addSpannedElements(n)
+                    #     else:
+                    #         print(f"FOUND span: {span}")
+
+
     return score_copy
 
 
