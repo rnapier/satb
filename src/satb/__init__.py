@@ -14,6 +14,14 @@ except ImportError:
     print("Error: music21 library is required but not installed.", file=sys.stderr)
     sys.exit(1)
 
+# Define the part/voice mappings for SATB
+VOICE_MAPPINGS = [
+    (1, 1, "Soprano"),
+    (1, 2, "Alto"),
+    (2, 5, "Tenor"),
+    (2, 6, "Bass")
+]
+
 
 def extract_part_voice(score: music21.stream.Score, part_number: int, voice_number: int, lyrics_stream: Optional[music21.stream.Stream]) -> music21.stream.Score:
     """Filter a Score to contain only the specified part and voice.
@@ -65,6 +73,7 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
         n.stemDirection = None
 
         # FIXME: Maybe not just lyrics[0]
+        # Extend ties and slurs to lyrics.
         # This is a bug in Music21; doesn't support <extend>
         # https://github.com/cuthbertLab/music21/issues/516
         if n.lyrics:
@@ -145,7 +154,7 @@ def extract_voice_to_part(score: music21.stream.Score, part_number: int, voice_n
 def create_single_4part_score(score: music21.stream.Score) -> music21.stream.Score:
     """Convert a combined SATB score to a 4-part score with separate parts.
     
-    Extracts all 4 voices into separate parts: Soprano, Alto, Tenor, Bass.
+    Extracts all 4 voices into separate parts based on VOICE_MAPPINGS.
     
     Args:
         score: The input Score object with combined voices
@@ -163,23 +172,22 @@ def create_single_4part_score(score: music21.stream.Score) -> music21.stream.Sco
     # Music21 sets this to the filename by default.
     result_score.metadata.movementName = None
 
-    # Extract each voice as a separate part
-    # Based on the voice mappings from the existing code:
-    # Soprano: Part 1, Voice 1
-    # Alto: Part 1, Voice 2
-    # Tenor: Part 2, Voice 5
-    # Bass: Part 2, Voice 6
+    # Extract each voice as a separate part using the global voice mappings
+    parts = []
     
-    soprano_part = extract_voice_to_part(score, 1, 1, "Soprano", None)
-    alto_part = extract_voice_to_part(score, 1, 2, "Alto", soprano_part)
-    tenor_part = extract_voice_to_part(score, 2, 5, "Tenor", soprano_part)
-    bass_part = extract_voice_to_part(score, 2, 6, "Bass", soprano_part)
+    # First extract the first part (for lyrics)
+    first_part_num, first_voice_num, first_voice_name = VOICE_MAPPINGS[0]
+    first_part = extract_voice_to_part(score, first_part_num, first_voice_num, first_voice_name, None)
+    parts.append(first_part)
     
-    # Add parts to the new score in SATB order
-    result_score.append(soprano_part)
-    result_score.append(alto_part)
-    result_score.append(tenor_part)
-    result_score.append(bass_part)
+    # Then extract the remaining parts
+    for part_num, voice_num, voice_name in VOICE_MAPPINGS[1:]:
+        part = extract_voice_to_part(score, part_num, voice_num, voice_name, first_part)
+        parts.append(part)
+    
+    # Add parts to the new score in order
+    for part in parts:
+        result_score.append(part)
     
     return result_score
 
@@ -241,29 +249,38 @@ def main() -> None:
             # Create separate files for each voice
             print("Creating separate files for each voice...")
             
-            # Define the part/voice mappings for SATB
-            voice_mappings = [
-                (1, 1, "Soprano"),
-                (1, 2, "Alto"),
-                (2, 5, "Tenor"),
-                (2, 6, "Bass")
-            ]
-            
-            for part_num, voice_num, voice_name in voice_mappings:
-                try:
-                    filtered_score = extract_part_voice(score, part_num, voice_num)
-                    
-                    # Save the filtered result
-                    output_filename = file_path.stem + f"-{voice_name}" + file_path.suffix
-                    output_path = file_path.parent / output_filename
-                    filtered_score.write('musicxml', fp=str(output_path))
-                    
-                    print(f"Filtered score (Part {part_num}, Voice {voice_num}) saved to: {output_filename}")
-                    
-                except Exception as e:
-                    print(f"Error processing Part {part_num}, Voice {voice_num} ({voice_name}): {e}", file=sys.stderr)
-                    # Continue with other voices even if one fails
-                    continue
+            # First extract the first voice to use as lyrics source
+            first_part_num, first_voice_num, first_voice_name = VOICE_MAPPINGS[0]
+            try:
+                first_voice_score = extract_part_voice(score, first_part_num, first_voice_num, None)
+                
+                # Save the first voice
+                output_filename = file_path.stem + f"-{first_voice_name}" + file_path.suffix
+                output_path = file_path.parent / output_filename
+                first_voice_score.write('musicxml', fp=str(output_path))
+                
+                print(f"Filtered score (Part {first_part_num}, Voice {first_voice_num}) saved to: {output_filename}")
+                
+                # Process remaining voices
+                for part_num, voice_num, voice_name in VOICE_MAPPINGS[1:]:
+                    try:
+                        filtered_score = extract_part_voice(score, part_num, voice_num, first_voice_score)
+                        
+                        # Save the filtered result
+                        output_filename = file_path.stem + f"-{voice_name}" + file_path.suffix
+                        output_path = file_path.parent / output_filename
+                        filtered_score.write('musicxml', fp=str(output_path))
+                        
+                        print(f"Filtered score (Part {part_num}, Voice {voice_num}) saved to: {output_filename}")
+                        
+                    except Exception as e:
+                        print(f"Error processing Part {part_num}, Voice {voice_num} ({voice_name}): {e}", file=sys.stderr)
+                        # Continue with other voices even if one fails
+                        continue
+                        
+            except Exception as e:
+                print(f"Error processing first voice: {e}", file=sys.stderr)
+                sys.exit(1)
         else:
             # Create a single 4-part score (default behavior)
             print("Creating single 4-part score...")
