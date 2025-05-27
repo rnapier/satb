@@ -64,26 +64,17 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
     # Save the Spanners to reapply
     spanners = copy.deepcopy(score_copy.parts[0].spanners.stream())
 
-    # Remove all parts except the specified one
-    parts_to_remove = []
-    for i, part in enumerate(score_copy.parts):
-        if i != (part_number - 1):  # Convert to 0-based index
-            parts_to_remove.append(part)
-    
-    for part in parts_to_remove:
-        score_copy.remove(part)
+    # Remove all parts except the specified one (minus one for 1-offset)
+    keep_part = score_copy.parts[part_number - 1]
+    for p in list(score_copy.parts):
+        if p is not keep_part:
+            score_copy.remove(p, recurse=True)
     
     # Now strip the remaining part to only the specified voice
     voice_id = str(voice_number)
-    
-    # for meas in target_part.measures():
-    voices_to_remove = []
-    for v in score_copy.recurse().voices:
+    for v in list(score_copy.recurse().voices):
         if v.id != voice_id:
-            voices_to_remove.append(v)
-    
-    for v in voices_to_remove:
-        score_copy.remove(v, recurse=True)
+            score_copy.remove(v, recurse=True)
 
     # Reinsert the spanners
     score_copy.parts[0].insert(0, spanners)
@@ -92,7 +83,8 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
     for n in score_copy.recurse().notes:
         n.stemDirection = None
 
-        # FIXME: Maybe not just lyrics[0]
+        # FIXME: Maybe not just lyrics[0]?
+        # BUG: We're getting extension too far into the beginning Measure 15, and in the Bass of 16
         # Extend ties and slurs to lyrics.
         # This is a bug in Music21; doesn't support <extend>
         # https://github.com/cuthbertLab/music21/issues/516
@@ -116,7 +108,7 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
                         else:
                             n.lyrics[0].syllabic = 'middle'
     
-    # Copy lyrics and from Soprano voice if available and current note has no lyric
+    # Copy lyrics and from first (usually Soprano) voice if available and current note has no lyric
     if lyrics_stream is not None:
 
         lyrics_in = lyrics_stream.recurse().notes.stream()
