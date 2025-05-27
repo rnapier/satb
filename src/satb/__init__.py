@@ -13,7 +13,7 @@ import argparse
 import copy
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import List, NamedTuple, Optional
 
 try:
     import music21
@@ -21,20 +21,29 @@ except ImportError:
     print("Error: music21 library is required but not installed.", file=sys.stderr)
     sys.exit(1)
 
+# Define a type for voice mappings
+class VoiceMapping(NamedTuple):
+    """Represents a mapping between a part/voice in the score and a named vocal part.
+    
+    Attributes:
+        part_number: The part in the score (1-based)
+        voice_number: The voice within that part (1-based)
+        voice_name: The name of the voice part (e.g., "Soprano", "Alto", etc.)
+    """
+    part_number: int
+    voice_number: int
+    voice_name: str
+
 # Define the part/voice mappings for SATB
-# Each tuple contains (part_number, voice_number, voice_name)
-# - part_number: The part in the score (1-based)
-# - voice_number: The voice within that part (1-based)
-# - voice_name: The name of the voice part
-VOICE_MAPPINGS = [
-    (1, 1, "Soprano"),
-    (1, 2, "Alto"),
-    (2, 5, "Tenor"),
-    (2, 6, "Bass")
+VOICE_MAPPINGS: List[VoiceMapping] = [
+    VoiceMapping(1, 1, "Soprano"),
+    VoiceMapping(1, 2, "Alto"),
+    VoiceMapping(2, 5, "Tenor"),
+    VoiceMapping(2, 6, "Bass")
 ]
 
 
-def extract_part_voice(score: music21.stream.Score, part_number: int, voice_number: int, lyrics_stream: Optional[music21.stream.Stream]) -> music21.stream.Score:
+def extract_part_voice(score: music21.stream.Score, mapping: VoiceMapping, lyrics_stream: Optional[music21.stream.Stream]) -> music21.stream.Score:
     """Filter a Score to contain only the specified part and voice.
     
     This function extracts a single voice from a multi-voice score. It removes all parts except
@@ -43,8 +52,7 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
     
     Args:
         score: The input Score object
-        part_number: The part number to keep (1-based)
-        voice_number: The voice number to keep within that part (1-based)
+        mapping: The VoiceMapping containing part_number, voice_number, and voice_name
         lyrics_stream: Optional stream containing lyrics to copy to notes without lyrics.
                       Typically the soprano part is used as the lyrics source.
     
@@ -58,13 +66,13 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
     spanners = copy.deepcopy(score.parts[0].spanners.stream())
 
     # Remove all parts except the specified one (minus one for 1-offset)
-    keep_part = score.parts[part_number - 1]
+    keep_part = score.parts[mapping.part_number - 1]
     for p in list(score.parts):
         if p is not keep_part:
             score.remove(p, recurse=True)
     
     # Now strip the remaining part to only the specified voice
-    voice_id = str(voice_number)
+    voice_id = str(mapping.voice_number)
     for v in list(score.recurse().voices):
         if v.id != voice_id:
             score.remove(v, recurse=True)
@@ -134,7 +142,7 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
     return score
 
 
-def extract_voice_to_part(score: music21.stream.Score, part_number: int, voice_number: int, part_name: str, lyrics_stream: Optional[music21.stream.Stream]) -> music21.stream.Part:
+def extract_voice_to_part(score: music21.stream.Score, mapping: VoiceMapping, lyrics_stream: Optional[music21.stream.Stream]) -> music21.stream.Part:
     """Extract a voice from a score and return it as a standalone Part.
     
     This function extracts a single voice and converts it to a standalone part with
@@ -142,9 +150,7 @@ def extract_voice_to_part(score: music21.stream.Score, part_number: int, voice_n
     
     Args:
         score: The input Score object
-        part_number: The part number containing the voice (1-based)
-        voice_number: The voice number to extract (1-based)
-        part_name: Name for the extracted part
+        mapping: The VoiceMapping containing part_number, voice_number, and voice_name
         lyrics_stream: Optional stream containing lyrics to copy to notes without lyrics.
                       Typically the soprano part is used as the lyrics source.
     
@@ -152,12 +158,12 @@ def extract_voice_to_part(score: music21.stream.Score, part_number: int, voice_n
         A Part containing only the specified voice
     """
     # Use existing function to get a score with just this voice
-    voice_score = extract_part_voice(score, part_number, voice_number, lyrics_stream)
+    voice_score = extract_part_voice(score, mapping, lyrics_stream)
     
     # Get the part and rename it
     extracted_part = voice_score.parts[0]
-    extracted_part.partName = part_name
-    extracted_part.partAbbreviation = part_name
+    extracted_part.partName = mapping.voice_name
+    extracted_part.partAbbreviation = mapping.voice_name
     
     return extracted_part
 
@@ -186,16 +192,9 @@ def create_single_4part_score(score: music21.stream.Score) -> music21.stream.Sco
     result_score.metadata.movementName = None
 
     # Extract each voice as a separate part using the global voice mappings
-    
-    # # First extract the first part (for lyrics)
-    # first_part_num, first_voice_num, first_voice_name = VOICE_MAPPINGS[0]
-    # first_part = extract_voice_to_part(score, first_part_num, first_voice_num, first_voice_name, None)
-    # result_score.append(first_part)
-    
-    # Then extract the remaining parts
     first_part = None
-    for part_num, voice_num, voice_name in VOICE_MAPPINGS:
-        part = extract_voice_to_part(score, part_num, voice_num, voice_name, first_part)
+    for mapping in VOICE_MAPPINGS:
+        part = extract_voice_to_part(score, mapping, first_part)
         if not first_part:
             first_part = part
         result_score.append(part)
@@ -219,20 +218,20 @@ def process_separate_files(score: music21.stream.Score, file_path: Path) -> None
     # Extract each voice as a separate part using the global voice mappings
     first_part = None
     
-    for part_num, voice_num, voice_name in VOICE_MAPPINGS:
+    for mapping in VOICE_MAPPINGS:
         # Extract the voice
-        filtered_score = extract_part_voice(score, part_num, voice_num, first_part)
+        filtered_score = extract_part_voice(score, mapping, first_part)
         
         # Save the first voice for lyrics reference
         if first_part is None:
             first_part = filtered_score
         
         # Save the filtered result
-        output_filename = file_path.stem + f"-{voice_name}" + file_path.suffix
+        output_filename = file_path.stem + f"-{mapping.voice_name}" + file_path.suffix
         output_path = file_path.parent / output_filename
         filtered_score.write('musicxml', fp=output_path)
         
-        print(f"Filtered score (Part {part_num}, Voice {voice_num}) saved to: {output_filename}")
+        print(f"Filtered score (Part {mapping.part_number}, Voice {mapping.voice_number}) saved to: {output_filename}")
 
 
 def process_combined_file(score: music21.stream.Score, file_path: Path) -> None:
