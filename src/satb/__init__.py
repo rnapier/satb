@@ -1,5 +1,12 @@
 """
 SATB - A command-line tool for processing MusicXML files for SATB choral arrangements
+
+This module provides functionality for extracting individual voice parts from SATB (Soprano, Alto, Tenor, Bass)
+choral arrangements in MusicXML format. It can create separate files for each voice part or combine them
+into a single 4-part score with proper part assignments.
+
+The tool handles voice extraction, lyric propagation between voices, and proper handling of musical elements
+like ties, slurs, and dynamics.
 """
 
 import argparse
@@ -15,6 +22,10 @@ except ImportError:
     sys.exit(1)
 
 # Define the part/voice mappings for SATB
+# Each tuple contains (part_number, voice_number, voice_name)
+# - part_number: The part in the score (1-based)
+# - voice_number: The voice within that part (1-based)
+# - voice_name: The name of the voice part
 VOICE_MAPPINGS = [
     (1, 1, "Soprano"),
     (1, 2, "Alto"),
@@ -26,13 +37,22 @@ VOICE_MAPPINGS = [
 def extract_part_voice(score: music21.stream.Score, part_number: int, voice_number: int, lyrics_stream: Optional[music21.stream.Stream]) -> music21.stream.Score:
     """Filter a Score to contain only the specified part and voice.
     
+    This function extracts a single voice from a multi-voice score. It removes all parts except
+    the specified one, then removes all voices from that part except the specified voice.
+    It also handles stem directions, ties, slurs, and lyrics propagation.
+    
     Args:
         score: The input Score object
         part_number: The part number to keep (1-based)
         voice_number: The voice number to keep within that part (1-based)
+        lyrics_stream: Optional stream containing lyrics to copy to notes without lyrics.
+                      Typically the soprano part is used as the lyrics source.
     
     Returns:
         A new Score containing only the specified part and voice
+    
+    Raises:
+        ValueError: If the part_number is out of range
     """
     # Make a deep copy to avoid modifying the original
     score_copy = copy.deepcopy(score)
@@ -132,11 +152,16 @@ def extract_part_voice(score: music21.stream.Score, part_number: int, voice_numb
 def extract_voice_to_part(score: music21.stream.Score, part_number: int, voice_number: int, part_name: str, lyrics_stream: Optional[music21.stream.Stream]) -> music21.stream.Part:
     """Extract a voice from a score and return it as a standalone Part.
     
+    This function extracts a single voice and converts it to a standalone part with
+    the specified name. It uses extract_part_voice internally to filter the score.
+    
     Args:
         score: The input Score object
         part_number: The part number containing the voice (1-based)
         voice_number: The voice number to extract (1-based)
         part_name: Name for the extracted part
+        lyrics_stream: Optional stream containing lyrics to copy to notes without lyrics.
+                      Typically the soprano part is used as the lyrics source.
     
     Returns:
         A Part containing only the specified voice
@@ -154,13 +179,16 @@ def extract_voice_to_part(score: music21.stream.Score, part_number: int, voice_n
 def create_single_4part_score(score: music21.stream.Score) -> music21.stream.Score:
     """Convert a combined SATB score to a 4-part score with separate parts.
     
-    Extracts all 4 voices into separate parts based on VOICE_MAPPINGS.
+    Extracts all 4 voices into separate parts based on VOICE_MAPPINGS. This function
+    creates a new score with four separate parts (Soprano, Alto, Tenor, Bass) from
+    a score that may have combined voices within parts. It preserves metadata from
+    the original score and copies lyrics from the soprano part to other parts when needed.
     
     Args:
         score: The input Score object with combined voices
     
     Returns:
-        A new Score with 4 separate parts
+        A new Score with 4 separate parts (S, A, T, B)
     """
     # Create new score
     result_score = music21.stream.Score()
@@ -194,9 +222,18 @@ def create_single_4part_score(score: music21.stream.Score) -> music21.stream.Sco
 def process_separate_files(score: music21.stream.Score, file_path: Path) -> None:
     """Process a score into separate files for each voice.
     
+    This function extracts each voice from the score and saves it as a separate MusicXML file.
+    The output files are named using the original filename with the voice name appended
+    (e.g., "score-Soprano.musicxml"). The soprano part is extracted first and used as a
+    source for lyrics in the other parts.
+    
     Args:
         score: The input Score object
         file_path: Path to the original file
+    
+    Raises:
+        Exception: If there's an error processing the first voice, the function will exit.
+                  Errors in other voices will be reported but processing will continue.
     """
     print("Creating separate files for each voice...")
     
@@ -237,9 +274,16 @@ def process_separate_files(score: music21.stream.Score, file_path: Path) -> None
 def process_combined_file(score: music21.stream.Score, file_path: Path) -> None:
     """Process a score into a single 4-part score.
     
+    This function creates a new 4-part score from the input score, with each voice
+    (Soprano, Alto, Tenor, Bass) in its own part. The output file is named using
+    the original filename with "-4part" appended (e.g., "score-4part.musicxml").
+    
     Args:
         score: The input Score object
         file_path: Path to the original file
+    
+    Raises:
+        Exception: If there's an error creating the 4-part score, the function will exit.
     """
     print("Creating single 4-part score...")
     
@@ -260,7 +304,15 @@ def process_combined_file(score: music21.stream.Score, file_path: Path) -> None:
 
 
 def main() -> None:
-    """Main entry point for the SATB command-line tool."""
+    """Main entry point for the SATB command-line tool.
+    
+    Parses command-line arguments and processes the specified MusicXML file.
+    If no file is specified, displays help information.
+    
+    Command-line options:
+        file: Path to the MusicXML file to process
+        --separate: Create separate files for each voice instead of a combined 4-part score
+    """
     parser = argparse.ArgumentParser(
         prog='satb',
         description='A command-line tool for processing MusicXML files for SATB choral arrangements'
