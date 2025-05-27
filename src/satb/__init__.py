@@ -234,13 +234,12 @@ def process_separate_files(score: music21.stream.Score, file_path: Path) -> None
         sys.exit(1)
 
 
-def process_combined_file(score: music21.stream.Score, file_path: Path, verbose: bool = False) -> None:
+def process_combined_file(score: music21.stream.Score, file_path: Path) -> None:
     """Process a score into a single 4-part score.
     
     Args:
         score: The input Score object
         file_path: Path to the original file
-        verbose: Whether to print verbose output
     """
     print("Creating single 4-part score...")
     
@@ -254,13 +253,6 @@ def process_combined_file(score: music21.stream.Score, file_path: Path, verbose:
         four_part_score.write('musicxml', fp=str(output_path))
         
         print(f"4-part score saved to: {output_filename}")
-        
-        if verbose:
-            print(f"\n4-part score contains {len(four_part_score.parts)} parts:")
-            for i, part in enumerate(four_part_score.parts, 1):
-                part_name = part.partName or f"Part {i}"
-                notes = list(part.recurse().getElementsByClass(['Note', 'Chord']))
-                print(f"  Part {i}: {part_name} - {len(notes)} notes/chords")
         
     except Exception as e:
         print(f"Error creating 4-part score: {e}", file=sys.stderr)
@@ -279,19 +271,7 @@ def main() -> None:
         nargs='?',
         help='MusicXML file to process'
     )
-    
-    parser.add_argument(
-        '--version',
-        action='version',
-        version='%(prog)s 0.1.0'
-    )
-    
-    parser.add_argument(
-        '-v', '--verbose',
-        action='store_true',
-        help='Enable verbose output'
-    )
-    
+        
     parser.add_argument(
         '--separate',
         action='store_true',
@@ -299,10 +279,6 @@ def main() -> None:
     )
     
     args = parser.parse_args()
-    
-    if args.verbose:
-        print(f"SATB v0.1.0")
-        print(f"Using music21 v{music21.VERSION_STR}")
     
     if args.file:
         file_path = Path(args.file)
@@ -316,7 +292,8 @@ def main() -> None:
         # Parse the file
         print(f"Processing file: {args.file}")
         try:
-            score = music21.converter.parse(str(file_path))
+            score = music21.converter.parse(file_path)
+            assert isinstance(score, music21.stream.Score)
         except Exception as e:
             print(f"Error parsing file: {e}", file=sys.stderr)
             sys.exit(1)
@@ -324,9 +301,10 @@ def main() -> None:
         if args.separate:
             process_separate_files(score, file_path)
         else:
-            process_combined_file(score, file_path, args.verbose)
+            process_combined_file(score, file_path)
     else:
         parser.print_help()
 
 if __name__ == '__main__':
     main()
+
