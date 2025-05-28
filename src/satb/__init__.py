@@ -2,8 +2,7 @@
 SATB - A command-line tool for processing MusicXML files for SATB choral arrangements
 
 This module provides functionality for extracting individual voice parts from SATB (Soprano, Alto, Tenor, Bass)
-choral arrangements in MusicXML format. It can create separate files for each voice part or combine them
-into a single 4-part score with proper part assignments.
+choral arrangements in MusicXML format. It creates a single 4-part score with proper part assignments.
 
 The tool handles voice extraction, lyric propagation between voices, and proper handling of musical elements
 like ties, slurs, and dynamics.
@@ -201,38 +200,6 @@ def create_single_4part_score(score: music21.stream.Score) -> music21.stream.Sco
     
     return result_score
 
-def process_separate_files(score: music21.stream.Score, file_path: Path) -> None:
-    """Process a score into separate files for each voice.
-    
-    This function extracts each voice from the score and saves it as a separate MusicXML file.
-    The output files are named using the original filename with the voice name appended
-    (e.g., "score-Soprano.musicxml"). The soprano part is extracted first and used as a
-    source for lyrics in the other parts.
-    
-    Args:
-        score: The input Score object
-        file_path: Path to the original file
-    """
-    print("Creating separate files for each voice...")
-    
-    # Extract each voice as a separate part using the global voice mappings
-    first_part = None
-    
-    for mapping in VOICE_MAPPINGS:
-        # Extract the voice
-        filtered_score = extract_part_voice(score, mapping, first_part)
-        
-        # Save the first voice for lyrics reference
-        if first_part is None:
-            first_part = filtered_score
-        
-        # Save the filtered result
-        output_filename = file_path.stem + f"-{mapping.voice_name}" + file_path.suffix
-        output_path = file_path.parent / output_filename
-        filtered_score.write('musicxml', fp=output_path)
-        
-        print(f"Filtered score (Part {mapping.part_number}, Voice {mapping.voice_number}) saved to: {output_filename}")
-
 
 def process_combined_file(score: music21.stream.Score, file_path: Path) -> None:
     """Process a score into a single 4-part score.
@@ -265,7 +232,6 @@ def main() -> None:
     
     Command-line options:
         file: Path to the MusicXML file to process
-        --separate: Create separate files for each voice instead of a combined 4-part score
     """
     parser = argparse.ArgumentParser(
         prog='satb',
@@ -276,12 +242,6 @@ def main() -> None:
         'file',
         nargs='?',
         help='MusicXML file to process'
-    )
-        
-    parser.add_argument(
-        '--separate',
-        action='store_true',
-        help='Create separate files for each voice (Soprano, Alto, Tenor, Bass)'
     )
     
     args = parser.parse_args()
@@ -304,10 +264,7 @@ def main() -> None:
             print(f"Error parsing file: {e}", file=sys.stderr)
             sys.exit(1)
 
-        if args.separate:
-            process_separate_files(score, file_path)
-        else:
-            process_combined_file(score, file_path)
+        process_combined_file(score, file_path)
     else:
         parser.print_help()
 
