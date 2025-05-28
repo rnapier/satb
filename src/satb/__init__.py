@@ -42,11 +42,12 @@ VOICE_MAPPINGS: List[VoiceMapping] = [
 ]
 
 
-def extract_part_voice(score: music21.stream.Score, mapping: VoiceMapping, lyrics_stream: Optional[music21.stream.Stream]) -> music21.stream.Score:
-    """Filter a Score to contain only the specified part and voice.
+def extract_voice(score: music21.stream.Score, mapping: VoiceMapping, lyrics_stream: Optional[music21.stream.Stream] = None) -> music21.stream.Part:
+    """Extract a voice from a score and return it as a standalone Part.
     
-    This function extracts a single voice from a multi-voice score. It removes all parts except
-    the specified one, then removes all voices from that part except the specified voice.
+    This function extracts a single voice from a multi-voice score and converts it to a
+    standalone part with the specified name. It removes all parts except the specified one,
+    then removes all voices from that part except the specified voice.
     It also handles stem directions, ties, slurs, and lyrics propagation.
     
     Args:
@@ -56,7 +57,7 @@ def extract_part_voice(score: music21.stream.Score, mapping: VoiceMapping, lyric
                       Typically the soprano part is used as the lyrics source.
     
     Returns:
-        A new Score containing only the specified part and voice
+        A Part containing only the specified voice
     """
     # Make a deep copy to avoid modifying the original
     score = copy.deepcopy(score)
@@ -108,9 +109,8 @@ def extract_part_voice(score: music21.stream.Score, mapping: VoiceMapping, lyric
                         else:
                             n.lyrics[0].syllabic = 'middle'
     
-    # Copy lyrics and from first (usually Soprano) voice if available and current note has no lyric
+    # Copy lyrics from first (usually Soprano) voice if available and current note has no lyric
     if lyrics_stream is not None:
-
         lyrics_in = lyrics_stream.recurse().notes.stream()
         lyrics_out = score.recurse().notes.stream()
 
@@ -127,40 +127,8 @@ def extract_part_voice(score: music21.stream.Score, mapping: VoiceMapping, lyric
                     if first_note.lyrics:
                         note.lyrics = first_note.lyrics
 
-
-# TODO: Do I need to create a new wedge and insert it in this part?
-                    # for span in corresponding_notes[0].getSpannerSites():
-                    #     if isinstance(span, music21.dynamics.DynamicWedge):
-                    #         print(f"FOUND wedge (voice: {voice_number})")
-                    #         # FIXME: Maybe check if we already have a dynamic?
-                    #         span.addSpannedElements(n)
-                    #     else:
-                    #         print(f"FOUND span: {span}")
-
-
-    return score
-
-
-def extract_voice_to_part(score: music21.stream.Score, mapping: VoiceMapping, lyrics_stream: Optional[music21.stream.Stream]) -> music21.stream.Part:
-    """Extract a voice from a score and return it as a standalone Part.
-    
-    This function extracts a single voice and converts it to a standalone part with
-    the specified name. It uses extract_part_voice internally to filter the score.
-    
-    Args:
-        score: The input Score object
-        mapping: The VoiceMapping containing part_number, voice_number, and voice_name
-        lyrics_stream: Optional stream containing lyrics to copy to notes without lyrics.
-                      Typically the soprano part is used as the lyrics source.
-    
-    Returns:
-        A Part containing only the specified voice
-    """
-    # Use existing function to get a score with just this voice
-    voice_score = extract_part_voice(score, mapping, lyrics_stream)
-    
     # Get the part and rename it
-    extracted_part = voice_score.parts[0]
+    extracted_part = score.parts[0]
     extracted_part.partName = mapping.voice_name
     extracted_part.partAbbreviation = mapping.voice_name
     
@@ -193,7 +161,7 @@ def create_single_4part_score(score: music21.stream.Score) -> music21.stream.Sco
     # Extract each voice as a separate part using the global voice mappings
     first_part = None
     for mapping in VOICE_MAPPINGS:
-        part = extract_voice_to_part(score, mapping, first_part)
+        part = extract_voice(score, mapping, first_part)
         if not first_part:
             first_part = part
         result_score.append(part)
