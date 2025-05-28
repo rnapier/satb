@@ -9,7 +9,7 @@
     <creator type="composer">Joseph Barnby</creator>
     <creator type="lyricist">Alfred Tennyson</creator>
     <encoding>
-      <encoding-date>2025-05-27</encoding-date>
+      <encoding-date>2025-05-28</encoding-date>
       <software>music21 v.9.7.0</software>
       <software>MuseScore 4.5.2</software>
     </encoding>
@@ -24,47 +24,47 @@
     <score-part id="P1">
       <part-name>Soprano</part-name>
       <part-abbreviation>Soprano</part-abbreviation>
-      <score-instrument id="I15dc52e9604e44aa88e9b9428eb193dd">
+      <score-instrument id="I24e592e66de0fd2849be3b3b271b4894">
         <instrument-name>Piano</instrument-name>
         <instrument-abbreviation>Pno</instrument-abbreviation>
       </score-instrument>
-      <midi-instrument id="I15dc52e9604e44aa88e9b9428eb193dd">
+      <midi-instrument id="I24e592e66de0fd2849be3b3b271b4894">
         <midi-channel>1</midi-channel>
         <midi-program>1</midi-program>
       </midi-instrument>
     </score-part>
-    <score-part id="Pf16c652e1a225fe1b06776fb08dec4ef">
+    <score-part id="P5c04b2032076f5c4f21ca93f6d5d16a0">
       <part-name>Alto</part-name>
       <part-abbreviation>Alto</part-abbreviation>
-      <score-instrument id="Ie9b6b6eb848a7baca65b4e4bcd6d7749">
+      <score-instrument id="Ie446a09b514493df262d6515add24c8f">
         <instrument-name>Piano</instrument-name>
         <instrument-abbreviation>Pno</instrument-abbreviation>
       </score-instrument>
-      <midi-instrument id="Ie9b6b6eb848a7baca65b4e4bcd6d7749">
+      <midi-instrument id="Ie446a09b514493df262d6515add24c8f">
         <midi-channel>2</midi-channel>
         <midi-program>1</midi-program>
       </midi-instrument>
     </score-part>
-    <score-part id="Pc5035d7a9eb1cf40ceb20ee208b90b59">
+    <score-part id="P09bfb0e5372fbbb7a5a403cfeed1c2e0">
       <part-name>Tenor</part-name>
       <part-abbreviation>Tenor</part-abbreviation>
-      <score-instrument id="I9529f5c79422c96e83bea53b0a3d1bc1">
+      <score-instrument id="I4ef21f5f097ab7794b8acd285c7d914b">
         <instrument-name>Piano</instrument-name>
         <instrument-abbreviation>Pno</instrument-abbreviation>
       </score-instrument>
-      <midi-instrument id="I9529f5c79422c96e83bea53b0a3d1bc1">
+      <midi-instrument id="I4ef21f5f097ab7794b8acd285c7d914b">
         <midi-channel>3</midi-channel>
         <midi-program>1</midi-program>
       </midi-instrument>
     </score-part>
-    <score-part id="P90b497f328fb83ac856b444ee641d76c">
+    <score-part id="Pd9ea95a60f8ed105f7131b0b78879169">
       <part-name>Bass</part-name>
       <part-abbreviation>Bass</part-abbreviation>
-      <score-instrument id="Ib38444ec9b66a1b7049c7e46e4e9c3c2">
+      <score-instrument id="I9d85adb198541ff60396835efedd7294">
         <instrument-name>Piano</instrument-name>
         <instrument-abbreviation>Pno</instrument-abbreviation>
       </score-instrument>
-      <midi-instrument id="Ib38444ec9b66a1b7049c7e46e4e9c3c2">
+      <midi-instrument id="I9d85adb198541ff60396835efedd7294">
         <midi-channel>4</midi-channel>
         <midi-program>1</midi-program>
       </midi-instrument>
@@ -1938,7 +1938,7 @@
     </measure>
   </part>
   <!--=========================== Part 2 ===========================-->
-  <part id="Pf16c652e1a225fe1b06776fb08dec4ef">
+  <part id="P5c04b2032076f5c4f21ca93f6d5d16a0">
     <!--========================= Measure 1 ==========================-->
     <measure implicit="no" number="1" width="473.6">
       <print>
@@ -2142,7 +2142,7 @@
           <text>me!</text>
         </lyric>
       </note>
-      <note print-object="no" print-spacing="yes">
+      <note>
         <rest />
         <duration>5040</duration>
         <type>eighth</type>
@@ -3029,7 +3029,7 @@
           <text>dark!</text>
         </lyric>
       </note>
-      <note print-object="no" print-spacing="yes">
+      <note>
         <rest />
         <duration>5040</duration>
         <type>eighth</type>
@@ -3738,7 +3738,7 @@
     </measure>
   </part>
   <!--=========================== Part 3 ===========================-->
-  <part id="Pc5035d7a9eb1cf40ceb20ee208b90b59">
+  <part id="P09bfb0e5372fbbb7a5a403cfeed1c2e0">
     <!--========================= Measure 1 ==========================-->
     <measure implicit="no" number="1" width="473.6">
       <print>
@@ -5568,7 +5568,7 @@
     </measure>
   </part>
   <!--=========================== Part 4 ===========================-->
-  <part id="P90b497f328fb83ac856b444ee641d76c">
+  <part id="Pd9ea95a60f8ed105f7131b0b78879169">
     <!--========================= Measure 1 ==========================-->
     <measure implicit="no" number="1" width="473.6">
       <print>
@@ -5771,7 +5771,7 @@
           <text>me!</text>
         </lyric>
       </note>
-      <note print-object="no" print-spacing="yes">
+      <note>
         <rest />
         <duration>5040</duration>
         <type>eighth</type>
@@ -6672,7 +6672,7 @@
           <text>dark!</text>
         </lyric>
       </note>
-      <note print-object="no" print-spacing="yes">
+      <note>
         <rest />
         <duration>5040</duration>
         <type>eighth</type>

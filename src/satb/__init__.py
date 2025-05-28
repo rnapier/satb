@@ -90,6 +90,9 @@ def extract_voice(
         if v.id != voice_id:
             part.remove(v, recurse=True)
 
+    # Insert missing rests that were merged across voices
+    part.makeRests(fillGaps=True, inPlace=True)
+
     # TODO: need to copy slurs first, so inTieOrSlur works
 
     # Copy lyrics from first (usually Soprano) voice if available and current note has no lyric
