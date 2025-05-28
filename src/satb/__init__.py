@@ -58,29 +58,21 @@ def extract_voice(score: music21.stream.Score, mapping: VoiceMapping, lyrics_str
     
     Returns:
         A Part containing only the specified voice
-    """
-    # Make a deep copy to avoid modifying the original
-    score = copy.deepcopy(score)
-    
-    # Save the Spanners to reapply
-    spanners = copy.deepcopy(score.parts[0].spanners.stream())
+    """    
 
-    # Remove all parts except the specified one (minus one for 1-offset)
-    keep_part = score.parts[mapping.part_number - 1]
-    for p in list(score.parts):
-        if p is not keep_part:
-            score.remove(p, recurse=True)
-    
-    # Now strip the remaining part to only the specified voice
+    # Make a copy of the part
+    part = copy.deepcopy(score.parts[mapping.part_number - 1])
+
+    part.partName = mapping.voice_name
+    part.partAbbreviation = mapping.voice_name
+
+    # Now strip the part to only the specified voice
     voice_id = str(mapping.voice_number)
-    for v in list(score.recurse().voices):
+    for v in list(part.recurse().voices):
         if v.id != voice_id:
-            score.remove(v, recurse=True)
+            part.remove(v, recurse=True)
 
-    # Reinsert the spanners
-    score.parts[0].insert(0, spanners)
-
-    for n in score.recurse().notes:
+    for n in part.recurse().notes:
         # Remove stem direction specifications
         n.stemDirection = None
 
@@ -126,13 +118,8 @@ def extract_voice(score: music21.stream.Score, mapping: VoiceMapping, lyrics_str
                     first_note = corresponding_notes[0]
                     if first_note.lyrics:
                         note.lyrics = first_note.lyrics
-
-    # Get the part and rename it
-    extracted_part = score.parts[0]
-    extracted_part.partName = mapping.voice_name
-    extracted_part.partAbbreviation = mapping.voice_name
     
-    return extracted_part
+    return part
 
 def create_single_4part_score(score: music21.stream.Score) -> music21.stream.Score:
     """Convert a combined SATB score to a 4-part score with separate parts.
